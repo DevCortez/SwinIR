@@ -60,6 +60,8 @@ def main():
     for idx, path in enumerate(sorted(glob.glob(os.path.join(folder, '*')))):
         # read image
         imgname, img_lq, img_gt = get_image_pair(args, path)  # image to HWC-BGR, float32
+        img_lq_ref = cv2.imread(path, cv2.IMREAD_UNCHANGED) 
+
         img_lq = np.transpose(img_lq if img_lq.shape[2] == 1 else img_lq[:, :, [2, 1, 0]], (2, 0, 1))  # HCW-BGR to CHW-RGB
         img_lq = torch.from_numpy(img_lq).float().unsqueeze(0).to(device)  # CHW-RGB to NCHW-RGB
 
@@ -79,7 +81,18 @@ def main():
         if output.ndim == 3:
             output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))  # CHW-RGB to HCW-BGR
         output = (output * 255.0).round().astype(np.uint8)  # float32 to uint8
-        cv2.imwrite(f'{save_dir}/{imgname}_SwinIR.png', output)
+
+        # resize img_lq_ref by scale
+        img_lq_ref = cv2.resize(img_lq_ref, (img_lq_ref.shape[1] * args.scale, img_lq_ref.shape[0] * args.scale),
+                                interpolation=cv2.INTER_CUBIC)
+
+        # extract alpha from img_lq_ref
+        alpha = img_lq_ref[:, :, 3]
+
+        #add alpha channel to output
+        output = np.dstack((output, alpha))
+
+        cv2.imwrite(f'{save_dir}/{imgname}.png', output)
 
         # evaluate psnr/ssim/psnr_b
         if img_gt is not None:
@@ -228,6 +241,8 @@ def setup(args):
 
 def get_image_pair(args, path):
     (imgname, imgext) = os.path.splitext(os.path.basename(path))
+    print(imgname)
+    print(imgext)
 
     # 001 classical image sr/ 002 lightweight image sr (load lq-gt image pairs)
     if args.task in ['classical_sr', 'lightweight_sr']:
