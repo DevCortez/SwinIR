@@ -58,6 +58,9 @@ def main():
     psnr, ssim, psnr_y, ssim_y, psnrb, psnrb_y = 0, 0, 0, 0, 0, 0
 
     for idx, path in enumerate(sorted(glob.glob(os.path.join(folder, '*')))):
+        if os.path.exists(os.path.join(save_dir, os.path.basename(path))):
+            continue
+        
         # read image
         imgname, img_lq, img_gt = get_image_pair(args, path)  # image to HWC-BGR, float32
         img_lq_ref = cv2.imread(path, cv2.IMREAD_UNCHANGED) 
